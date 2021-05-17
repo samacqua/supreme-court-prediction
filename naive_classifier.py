@@ -1,11 +1,12 @@
 import numpy as np
+from classifier import Classifier
 
-class NaiveClassifier:
+class NaiveClassifier(Classifier):
     """
     just guesses the category that occurs most often in the training set
     """
     def __init__(self, classes):
-        self.classes = classes
+        super().__init__(classes)
         self.probs = np.zeros(len(classes))
 
     def train(self, dataset, labels):

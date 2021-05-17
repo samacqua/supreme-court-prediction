@@ -98,11 +98,27 @@ def train_test_split(data, labels, split=0.8):
 
 
 def test_classifier(classifier_class, data, labels, num_trials=15, verbose=True):
+    """
+    test a classifier on test data and labels n times
+    :param classifier_class: the classifier to evaluate. Class takes array of classes in initializer, and has train
+                             and test methods
+    :param data: d x n array of test data
+    :param labels: 1 x n array of test labels
+    :param num_trials: the number of trials to evaluate over
+    :param verbose: print accuracy per trial
+    :return: np array of accuracies over all trials
+    """
 
     test_accs = np.zeros(num_trials)
     for i in range(num_trials):
         train_data, train_labels, test_data, test_labels = train_test_split(data, labels)
         unique_labels = np.unique(train_labels)
+        if verbose:
+            N = len(train_labels)
+            print('\tlabels:', end='\t')
+            for j, lab in enumerate(unique_labels):
+                print(f'{lab}: {round(np.sum(train_labels == j) / N*100, 2)}%', end='\t')
+            print('')
 
         classifier = classifier_class(unique_labels)
 
@@ -112,7 +128,8 @@ def test_classifier(classifier_class, data, labels, num_trials=15, verbose=True)
         test_acc = np.sum(pclasses == test_labels) / float(test_labels.shape[0]) * 100  # perc correct predictions
 
         test_accs[i] = test_acc
-        if verbose: print(f"\ttest accuracy trial {i}: {round(test_acc, 3)} %")
+        if verbose:
+            print(f"\ttest accuracy trial {i}: {round(test_acc, 3)} %")
 
     return test_accs
 
@@ -127,7 +144,7 @@ def main():
     # corpus = Corpus('dataset/supreme-2018')
 
     # get multiple corpuses
-    years = list(range(2015, 2020))
+    years = list(range(2019, 2020))
     corpus = Corpus(f'dataset/supreme-{years[0]}')
     for year in years[1:]:
         corpus = corpus.merge(Corpus(f'dataset/supreme-{year}'))
@@ -166,7 +183,7 @@ def main():
     for classifier_type in classifiers:
         print('\n', str(classifier_type)[8:-2])
 
-        class_accs = test_classifier(classifier_type, data, labels, num_trials)
+        class_accs = test_classifier(classifier_type, data, labels, num_trials, verbose=False)
         print(f"test accuracy: {round(np.mean(class_accs), 3)} %")
 
         class_accs = np.sort(class_accs)
@@ -175,6 +192,7 @@ def main():
         conf = 1 - (conf_indx + 1) / num_trials  # bc rounding, not actually conf interval so update
         print(f"bootstrap {round(conf * 100, 2)}% " +
               f"confidence: {round(class_accs[conf_indx], 2)} % - {round(class_accs[num_trials - 1 - conf_indx], 2)} %")
+
 
 if __name__ == '__main__':
     main()

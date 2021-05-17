@@ -1,6 +1,6 @@
 import numpy as np
 import re
-
+from classifier import Classifier
 
 def preprocess_string(str_arg):
     """"
@@ -15,13 +15,10 @@ def preprocess_string(str_arg):
     return cleaned_str  # returning the preprocessed string
 
 
-class NaiveBayes:
+class NaiveBayes(Classifier):
     """
     calculates P(class|data) = (P(data|class) * P(class)) / P(data)
     """
-
-    def __init__(self, classes):
-        self.classes = classes  # numpy array of classes
 
     def addToBow(self, example, dict_index):
         """
