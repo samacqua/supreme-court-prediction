@@ -97,6 +97,26 @@ def train_test_split(data, labels, split=0.8):
     return train_data, train_labels, test_data, test_labels
 
 
+def test_classifier(classifier_class, data, labels, num_trials=15, verbose=True):
+
+    test_accs = np.zeros(num_trials)
+    for i in range(num_trials):
+        train_data, train_labels, test_data, test_labels = train_test_split(data, labels)
+        unique_labels = np.unique(train_labels)
+
+        classifier = classifier_class(unique_labels)
+
+        classifier.train(train_data, train_labels)
+
+        pclasses = classifier.test(test_data)  # get predcitions for test set
+        test_acc = np.sum(pclasses == test_labels) / float(test_labels.shape[0]) * 100  # perc correct predictions
+
+        test_accs[i] = test_acc
+        if verbose: print(f"\ttest accuracy trial {i}: {round(test_acc, 3)} %")
+
+    return test_accs
+
+
 def main():
 
     ############
@@ -140,37 +160,22 @@ def main():
     # try classifiers
     #################
 
-    num_trials = 5
+    num_trials = 15
 
     classifiers = [NaiveBayes, NaiveClassifier]
     for classifier_type in classifiers:
         print('\n', str(classifier_type)[8:-2])
 
-        test_accs = np.zeros(num_trials)
-        for i in range(num_trials):
+        class_accs = test_classifier(classifier_type, data, labels, num_trials)
+        print(f"test accuracy: {round(np.mean(class_accs), 3)} %")
 
-            train_data, train_labels, test_data, test_labels = train_test_split(data, labels)
-            unique_labels = np.unique(train_labels)
-
-            classifier = classifier_type(unique_labels)
-
-            classifier.train(train_data, train_labels)
-
-            pclasses = classifier.test(test_data)  # get predcitions for test set
-            test_acc = np.sum(pclasses == test_labels) / float(test_labels.shape[0]) * 100    # perc correct predictions
-
-            test_accs[i] = test_acc
-            print(f"\ttest accuracy trial {i}: {round(test_acc, 3)} %")
-
-        print(f"test accuracy: {round(np.mean(test_accs), 3)} %")
-
-        test_accs = np.sort(test_accs)
+        class_accs = np.sort(class_accs)
         conf = 0.9
         conf_indx = int(num_trials * (1 - conf))
-        conf = 1 - (conf_indx + 1) / num_trials     # bc rounding, not actually conf interval so update
-        print(f"bootstrap {round(conf*100, 2)}% " +
-              f"confidence: {round(test_accs[conf_indx], 2)} % - {round(test_accs[num_trials-1-conf_indx], 2)} %")
-
+        conf = 1 - (conf_indx + 1) / num_trials  # bc rounding, not actually conf interval so update
+        print(f"bootstrap {round(conf * 100, 2)}% " +
+              f"confidence: {round(class_accs[conf_indx], 2)} % - {round(class_accs[num_trials - 1 - conf_indx], 2)} %")
 
 if __name__ == '__main__':
     main()
+
