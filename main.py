@@ -1,7 +1,13 @@
-from convokit import Corpus, download, VectorClassifier
+from convokit import Corpus, download
+from convokit import BoWTransformer
+
 import os
 import pandas as pd
-from convokit import BoWTransformer
+from random import shuffle
+import numpy as np
+
+from naivebayes import NaiveBayes
+from naive_classifier import NaiveClassifier
 
 def download_corpus(name, base_path='dataset'):
     """
@@ -68,54 +74,102 @@ def add_convo_meta(corpus, meta_fname, corpus_id, lines=True, overwrite=False):
     return corpus
 
 
-
-def win_lose_BoW(corpus):
+def train_test_split(data, labels, split=0.8):
     """
-    http://scdb.wustl.edu/data.php
-    :param corpus:
-    :return:
+    split into train and test set
+    :param data: np array of complete data (m x d)
+    :param labels: np array of labels (m x 1)
+    :param split: the train-test split, defaults to 0.8
+    :return: np arrays of train_data, train_labels, test_data, test_labels
     """
-    bow_transformer = BoWTransformer(obj_type="conversation", vector_name='bow_vector_2',
-                                      text_func=lambda convo: ' '.join(
-                                          [utt.text for utt in convo.get_chronological_utterance_list()])
-                                      )
 
+    # randomize the order
+    shuffled_data = list(zip(data, labels))
+    shuffle(shuffled_data)
+
+    # split into train and test
+    split_indx = int(len(data) * split)
+    train_data, train_labels = zip(*shuffled_data[:split_indx])
+    train_data, train_labels = np.array(train_data), np.array(train_labels)
+    test_data, test_labels = zip(*shuffled_data[split_indx:])
+    test_data, test_labels = np.array(test_data), np.array(test_labels)
+
+    return train_data, train_labels, test_data, test_labels
 
 
 def main():
 
-    # get the corpus up and running
-    # download_corpus('supreme-2019', 'dataset')
-    corpus = Corpus('dataset/supreme-2019')
+    ############
+    # get corpus
+    ############
+
+    # download_corpus('supreme-2015', 'dataset')
+    # corpus = Corpus('dataset/supreme-2018')
+
+    # get multiple corpuses
+    years = list(range(2015, 2020))
+    corpus = Corpus(f'dataset/supreme-{years[0]}')
+    for year in years[1:]:
+        corpus = corpus.merge(Corpus(f'dataset/supreme-{year}'))
+
     corpus.print_summary_stats()
 
-    # print all speakers in corpus
-    # for convo in corpus.iter_conversations():
-    #     print(convo.meta, end='\n\n')
-    #     for speaker in convo.iter_speakers():
-    #         print(speaker.meta)
-
-    # BoW to predict whether judge is speaking on utterance level
-    # print(corpus.random_utterance().meta)
-    # predict_judge_speaking(corpus)
-
-    # boW to predict win or lose on
-
+    #############################
     # add metadata file to corpus
+    #############################
+
     cases_path = 'dataset/cases.jsonl'
     corpus = add_convo_meta(corpus, cases_path, 'case_id')
 
-    # parse win side
-    for case in corpus.iter_conversations():
-        if case.meta['win_side'] == 1:
-            case.meta['win'] = True
-        elif case.meta['win_side'] == 0:
-            case.meta['win'] = False
-        else:
-            case.meta['win'] = None
+    #######################
+    # get dataset w/ labels
+    #######################
 
-    win_lose_BoW(corpus)
+    data = []
+    labels = []
+    for convo in corpus.iter_conversations():
+        convo_str = ' '.join([utt.text for utt in convo.iter_utterances()])     # get all as one string
+        label = convo.meta['win_side']
+        if label not in [0, 1]:
+            continue    # ignore cases w/ out clear outcome
 
+        data.append(convo_str)
+        labels.append(label)
+
+    #################
+    # try classifiers
+    #################
+
+    num_trials = 5
+
+    classifiers = [NaiveBayes, NaiveClassifier]
+    for classifier_type in classifiers:
+        print('\n', str(classifier_type)[8:-2])
+
+        test_accs = np.zeros(num_trials)
+        for i in range(num_trials):
+
+            train_data, train_labels, test_data, test_labels = train_test_split(data, labels)
+            unique_labels = np.unique(train_labels)
+
+            classifier = classifier_type(unique_labels)
+
+            classifier.train(train_data, train_labels)
+
+            pclasses = classifier.test(test_data)  # get predcitions for test set
+            test_acc = np.sum(pclasses == test_labels) / float(test_labels.shape[0]) * 100    # perc correct predictions
+
+            test_accs[i] = test_acc
+            print(f"\ttest accuracy trial {i}: {round(test_acc, 3)} %")
+
+        print(f"test accuracy: {round(np.mean(test_accs), 3)} %")
+
+        test_accs = np.sort(test_accs)
+        conf = 0.9
+        conf_indx = int(num_trials * (1 - conf))
+        conf = 1 - (conf_indx + 1) / num_trials     # bc rounding, not actually conf interval so update
+        print(f"bootstrap {round(conf*100, 2)}% " +
+              f"confidence: {round(test_accs[conf_indx], 2)} % - {round(test_accs[num_trials-1-conf_indx], 2)} %")
 
 
 if __name__ == '__main__':
