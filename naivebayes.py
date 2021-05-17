@@ -35,8 +35,6 @@ class NaiveBayes(Classifier):
     def train(self, dataset, labels):
         """
         trains naive bayes by calculating P(class|data) = (P(data|class) * P(class)) / P(data) based on dataset
-        :param dataset: np array of shape m x d
-        :param labels: np array of shape m x 1
         """
 
         self.examples = dataset
@@ -113,12 +111,6 @@ class NaiveBayes(Classifier):
         return post_prob
 
     def test(self, test_set):
-        """
-        predict the labels for a set of examples
-        :param test_set: data to use to predict
-        :return: np array of predictions
-        """
-
         predictions = []
         for example in test_set:
             # preprocess the test example the same way we did for training set exampels
