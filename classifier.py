@@ -1,3 +1,5 @@
+import re
+
 class Classifier:
     """
     base class for all classifiers
@@ -23,3 +25,14 @@ class Classifier:
         :return: np array of predictions
         """
         raise NotImplementedError
+
+    def tokenize_string(self, str_arg):
+        """"
+        tokenize a string of text
+        """
+
+        cleaned_str = re.sub('[^\w\s\']+', ' ', str_arg, flags=re.IGNORECASE)  # ignore non-alphanumeric or dashes or ' or whitespace
+        cleaned_str = re.sub('(\s+)', ' ', cleaned_str)  # multiple spaces are replaced by single space
+        cleaned_str = cleaned_str.lower()  # converting the cleaned string to lower case
+
+        return cleaned_str.split()

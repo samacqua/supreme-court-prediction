@@ -1,18 +1,5 @@
 import numpy as np
-import re
 from classifier import Classifier
-
-def preprocess_string(str_arg):
-    """"
-    clean text
-    """
-
-    cleaned_str = re.sub('[^\w\s\']+', ' ', str_arg,
-                         flags=re.IGNORECASE)  # ignore non-alphanumeric or dashes or ' or whitespace
-    cleaned_str = re.sub('(\s+)', ' ', cleaned_str)  # multiple spaces are replaced by single space
-    cleaned_str = cleaned_str.lower()  # converting the cleaned string to lower case
-
-    return cleaned_str  # returning the preprocessed string
 
 
 class NaiveBayes(Classifier):
@@ -20,16 +7,16 @@ class NaiveBayes(Classifier):
     calculates P(class|data) = (P(data|class) * P(class)) / P(data)
     """
 
-    def addToBow(self, example, dict_index):
+    def addToBow(self, tokens, dict_index):
         """
         adds count of each word to Bag of Words
-        :param example: the utterance to add
+        :param tokens: a tokenized utterance to add
         :param dict_index: the category to add the count to
         """
 
-        if isinstance(example, np.ndarray): example = example[0]  # sometimes given as [utterance] from np apply func
+        if isinstance(tokens, np.ndarray): tokens = tokens[0]  # sometimes given as [utterance] from np apply func
 
-        for token_word in example.split():
+        for token_word in tokens:
             self.bow_dicts[dict_index][token_word] = self.bow_dicts[dict_index].get(token_word, 0) + 1
 
     def train(self, dataset, labels):
@@ -44,7 +31,7 @@ class NaiveBayes(Classifier):
         for cat_index, cat in enumerate(self.classes):
             all_cat_examples = self.examples[self.labels == cat]
 
-            cleaned_examples = [preprocess_string(cat_example) for cat_example in all_cat_examples]
+            cleaned_examples = [self.tokenize_string(cat_example) for cat_example in all_cat_examples]
             for ex in cleaned_examples:
                 self.addToBow(ex, cat_index)
 
@@ -87,11 +74,12 @@ class NaiveBayes(Classifier):
         :return: log probability of given example for each class
         """
 
+        tokens = self.tokenize_string(test_example)
         likelihood_prob = np.zeros(self.classes.shape[0])
 
         for cat_index, cat in enumerate(self.classes):
 
-            for test_token in test_example.split():  # split the test example and get p of each test word
+            for test_token in tokens:  # split the test example and get p of each test word
 
                 # This loop computes : for each word w [ count(w|c)+1 ] / [ count(c) + |V| + 1 ]
 
@@ -113,13 +101,11 @@ class NaiveBayes(Classifier):
     def test(self, test_set):
         predictions = []
         for example in test_set:
-            # preprocess the test example the same way we did for training set exampels
-            cleaned_example = preprocess_string(example)
 
-            # simply get the posterior probability of every example
-            post_prob = self.getExampleProb(cleaned_example)  # get prob of this example for both classes
+            # get the posterior probability of every example
+            post_prob = self.getExampleProb(example)
 
-            # simply pick the max value and map against self.classes!
+            # pick the max value and map against self.classes!
             predictions.append(self.classes[np.argmax(post_prob)])
 
         return np.array(predictions)

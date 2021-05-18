@@ -8,6 +8,7 @@ import numpy as np
 
 from naivebayes import NaiveBayes
 from naive_classifier import NaiveClassifier
+from LSA import LSA
 
 def download_corpus(name, base_path='dataset'):
     """
@@ -177,9 +178,9 @@ def main():
     # try classifiers
     #################
 
-    num_trials = 15
+    num_trials = 1
 
-    classifiers = [NaiveBayes, NaiveClassifier]
+    classifiers = [NaiveBayes, NaiveClassifier, LSA]
     for classifier_type in classifiers:
         print('\n', str(classifier_type)[8:-2])
 
@@ -196,4 +197,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
