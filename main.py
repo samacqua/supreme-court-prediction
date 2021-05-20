@@ -144,8 +144,12 @@ def main():
     # download_corpus('supreme-2015', 'dataset')
     # corpus = Corpus('dataset/supreme-2018')
 
+    # for y in range(2000, 2015):
+    #     download_corpus(f'supreme-{y}', 'dataset')
+
     # get multiple corpuses
-    years = list(range(2019, 2020))
+    start_year = 2000
+    years = list(range(start_year, 2020))
     corpus = Corpus(f'dataset/supreme-{years[0]}')
     for year in years[1:]:
         corpus = corpus.merge(Corpus(f'dataset/supreme-{year}'))
@@ -164,15 +168,41 @@ def main():
     #######################
 
     data = []
+    transformer_data = []
     labels = []
+    max_conv_len = float('inf')
     for convo in corpus.iter_conversations():
         convo_str = ' '.join([utt.text for utt in convo.iter_utterances()])     # get all as one string
         label = convo.meta['win_side']
         if label not in [0, 1]:
             continue    # ignore cases w/ out clear outcome
 
+        # take into account max attention of transformer
+        words = convo_str.split(' ')
+        head_tail_words = words[:128] + words[-382:]
+        head_tail_convo_str = ' '.join(head_tail_words)
+
+        # even if transformer has attention, for size/memory purposes, reduce num words
+        if len(words) > max_conv_len:
+            print('too long')
+            truncated_words = words[:int(max_conv_len*0.25)] + words[-int(max_conv_len*0.75):]
+            convo_str = ' '.join(truncated_words)
+
+        transformer_data.append(head_tail_convo_str)
         data.append(convo_str)
         labels.append(label)
+
+    df = pd.DataFrame()
+    df['sentence'] = transformer_data
+    df['label'] = labels
+    df.to_csv(f'formatted_datasets/scotus_head_tail_{start_year}.csv', index=False)
+
+    df = pd.DataFrame()
+    df['sentence'] = data
+    df['label'] = labels
+    df.to_csv(f'formatted_datasets/scotus_{max_conv_len}_{start_year}.csv', index=False)
+
+    return
 
     #################
     # try classifiers
